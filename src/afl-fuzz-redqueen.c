@@ -2534,6 +2534,10 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 
   }
 
+#if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
+  u32 unstable = 0;
+#endif
+
   for (k = 0; k < CMP_MAP_W; ++k) {
 
     if (afl->pass_stats[k].faileds < CMPLOG_FAIL_MAX) {
@@ -2547,6 +2551,9 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 
         afl->pass_stats[k].faileds++;
         afl->orig_cmp_map->headers[k].hits = 0;
+#if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
+        ++unstable;
+#endif
 
       } else if (afl->orig_cmp_map->headers[k].hits) {
 
@@ -2570,6 +2577,9 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
           if (memcmp(v01, v11, afl->orig_cmp_map->headers[k].shape) != 0 ||
               memcmp(v00, v10, afl->orig_cmp_map->headers[k].shape) != 0) {
 
+#if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
+            ++unstable;
+#endif
             afl->pass_stats[k].faileds++;
             afl->orig_cmp_map->headers[k].hits = 0;
             continue;
@@ -2583,6 +2593,41 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
     }
 
   }
+
+#if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
+  if (unstable) {
+
+    FILE *f = stderr;
+  #ifndef _DEBUG
+    if (afl->not_on_tty) {
+
+      char fn[4096];
+      snprintf(fn, sizeof(fn), "%s/introspection_cmplog.txt", afl->out_dir);
+      f = fopen(fn, "a");
+
+    }
+
+  #endif
+
+    if (f) {
+
+      fprintf(
+          f,
+          "Colorization: fname=%s len=%u ms=%llu result=%u execs=%u found=%llu "
+          "taint=%u\n",
+          afl->queue_cur->fname, len, get_cur_time() - start_time,
+          afl->queue_cur->colorized, afl->stage_cur, new_hit_cnt - orig_hit_cnt,
+          positions);
+
+  #ifndef _DEBUG
+      if (afl->not_on_tty) { fclose(f); }
+  #endif
+
+    }
+
+  }
+
+#endif
 
   memset(afl->shm.cmp_map->headers, 0, sizeof(struct cmp_header) * CMP_MAP_W);
   if (unlikely(common_fuzz_cmplog_stuff(afl, buf, len))) {
