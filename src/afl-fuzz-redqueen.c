@@ -2611,13 +2611,8 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 
     if (f) {
 
-      fprintf(
-          f,
-          "Colorization: fname=%s len=%u ms=%llu result=%u execs=%u found=%llu "
-          "taint=%u\n",
-          afl->queue_cur->fname, len, get_cur_time() - start_time,
-          afl->queue_cur->colorized, afl->stage_cur, new_hit_cnt - orig_hit_cnt,
-          positions);
+      fprintf(f, "Unstable: fname=%s len=%u unstable=%u\n",
+              afl->queue_cur->fname, len, unstable);
 
   #ifndef _DEBUG
       if (afl->not_on_tty) { fclose(f); }
