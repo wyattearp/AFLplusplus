@@ -2490,6 +2490,7 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 #endif
 
   // Generate the cmplog data
+  u32 k, l;
 
   // manually clear the full cmp_map
   memset(afl->shm.cmp_map, 0, sizeof(struct cmp_map));
@@ -2515,6 +2516,74 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
   }
 
   memcpy(afl->orig_cmp_map, afl->shm.cmp_map, sizeof(struct cmp_map));
+
+  // check for unstable items
+  memset(afl->shm.cmp_map->headers, 0, sizeof(struct cmp_header) * CMP_MAP_W);
+  if (unlikely(common_fuzz_cmplog_stuff(afl, orig_buf, len))) {
+
+    afl->queue_cur->colorized = CMPLOG_LVL_MAX;
+    while (taint) {
+
+      t = taint->next;
+      ck_free(taint);
+      taint = t;
+
+    }
+
+    return 1;
+
+  }
+
+  for (k = 0; k < CMP_MAP_W; ++k) {
+
+    if (afl->pass_stats[k].faileds < CMPLOG_FAIL_MAX) {
+
+      if (afl->shm.cmp_map->headers[k].hits !=
+              afl->orig_cmp_map->headers[k].hits ||
+          afl->shm.cmp_map->headers[k].type !=
+              afl->orig_cmp_map->headers[k].type ||
+          afl->shm.cmp_map->headers[k].shape !=
+              afl->orig_cmp_map->headers[k].shape) {
+
+        afl->pass_stats[k].faileds++;
+        afl->orig_cmp_map->headers[k].hits = 0;
+
+      } else if (afl->orig_cmp_map->headers[k].hits) {
+
+        for (l = 0; l < afl->orig_cmp_map->headers[k].hits; ++l) {
+
+          u8 *v01, *v00 = (u8 *)afl->shm.cmp_map->log[k][l].v0;
+          u8 *v11, *v10 = (u8 *)afl->orig_cmp_map->log[k][l].v0;
+
+          if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS) {
+
+            v01 = (u8 *)&afl->shm.cmp_map->log[k][l].v0_128;
+            v11 = (u8 *)afl->orig_cmp_map->log[k][l].v0_128;
+
+          } else {
+
+            v01 = (u8 *)&afl->shm.cmp_map->log[k][l].v1;
+            v11 = (u8 *)afl->orig_cmp_map->log[k][l].v1;
+
+          }
+
+          if (memcmp(v01, v11, afl->orig_cmp_map->headers[k].shape) != 0 ||
+              memcmp(v00, v10, afl->orig_cmp_map->headers[k].shape) != 0) {
+
+            afl->pass_stats[k].faileds++;
+            afl->orig_cmp_map->headers[k].hits = 0;
+            continue;
+
+          }
+
+        }
+
+      }
+
+    }
+
+  }
+
   memset(afl->shm.cmp_map->headers, 0, sizeof(struct cmp_header) * CMP_MAP_W);
   if (unlikely(common_fuzz_cmplog_stuff(afl, buf, len))) {
 
@@ -2561,7 +2630,6 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
   u8 *cbuf = NULL;
 #endif
 
-  u32 k;
   for (k = 0; k < CMP_MAP_W; ++k) {
 
     if (!afl->shm.cmp_map->headers[k].hits) { continue; }
