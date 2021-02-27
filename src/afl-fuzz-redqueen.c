@@ -2557,25 +2557,43 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 
       } else if (afl->orig_cmp_map->headers[k].hits) {
 
-        for (l = 0; l < afl->orig_cmp_map->headers[k].hits; ++l) {
+        if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS) {
 
-          u8 *v01, *v00 = (u8 *)afl->shm.cmp_map->log[k][l].v0;
-          u8 *v11, *v10 = (u8 *)afl->orig_cmp_map->log[k][l].v0;
+          if (afl->orig_cmp_map->headers[k].hits > CMP_MAP_H) {
 
-          if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS) {
-
-            v01 = (u8 *)&afl->shm.cmp_map->log[k][l].v0_128;
-            v11 = (u8 *)afl->orig_cmp_map->log[k][l].v0_128;
-
-          } else {
-
-            v01 = (u8 *)&afl->shm.cmp_map->log[k][l].v1;
-            v11 = (u8 *)afl->orig_cmp_map->log[k][l].v1;
+            afl->orig_cmp_map->headers[k].hits = CMP_MAP_H;
 
           }
 
-          if (memcmp(v01, v11, afl->orig_cmp_map->headers[k].shape) != 0 ||
-              memcmp(v00, v10, afl->orig_cmp_map->headers[k].shape) != 0) {
+        } else {
+
+          if (afl->orig_cmp_map->headers[k].hits > CMP_MAP_RTN_H) {
+
+            afl->orig_cmp_map->headers[k].hits = CMP_MAP_RTN_H;
+
+          }
+
+        }
+
+        for (l = 0; l < afl->orig_cmp_map->headers[k].hits; ++l) {
+
+          u8 *v01, *v00 = (u8 *)&afl->shm.cmp_map->log[k][l].v0;
+          u8 *v11, *v10 = (u8 *)&afl->orig_cmp_map->log[k][l].v0;
+
+          if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS) {
+
+            v01 = (u8 *)&afl->shm.cmp_map->log[k][l].v1;
+            v11 = (u8 *)&afl->orig_cmp_map->log[k][l].v1;
+
+          } else {
+
+            v01 = ((u8 *)&afl->shm.cmp_map->log[k][l].v1_128) + 8;
+            v11 = ((u8 *)&afl->orig_cmp_map->log[k][l].v1_128) + 8;
+
+          }
+
+          if (memcmp(v01, v11, afl->orig_cmp_map->headers[k].shape + 1) != 0 ||
+              memcmp(v00, v10, afl->orig_cmp_map->headers[k].shape + 1) != 0) {
 
 #if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
             ++unstable;
