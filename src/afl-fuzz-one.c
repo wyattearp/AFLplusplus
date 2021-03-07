@@ -1999,23 +1999,23 @@ havoc_stage:
 
   u32 r_max, r;
 
-  r_max = 15 + ((afl->extras_cnt + afl->a_extras_cnt) ? 2 : 0);
+  r_max = 110 + (afl->extras_cnt ? 10 : 0) + (afl->a_extras_cnt ? 2 : 0);
 
   if (unlikely(afl->expand_havoc && afl->ready_for_splicing_count > 1)) {
 
     /* add expensive havoc cases here, they are activated after a full
        cycle without finds happened */
 
-    r_max++;
+    r_max += 2;
 
   }
 
-  if (unlikely(get_cur_time() - afl->last_path_time > 5000 &&
+  if (unlikely(get_cur_time() - afl->last_path_time > 30000 &&
                afl->ready_for_splicing_count > 1)) {
 
     /* add expensive havoc cases here if there is no findings in the last 5s */
 
-    r_max++;
+    r_max += 2;
 
   }
 
@@ -2070,6 +2070,12 @@ havoc_stage:
       switch ((r = rand_below(afl, r_max))) {
 
         case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6: {
 
           /* Flip a single bit somewhere. Spooky! */
 
@@ -2080,7 +2086,15 @@ havoc_stage:
           FLIP_BIT(out_buf, rand_below(afl, temp_len << 3));
           break;
 
-        case 1:
+        }
+
+        case 7:
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+        case 12:
+        case 13: {
 
           /* Set byte to interesting value. */
 
@@ -2092,41 +2106,51 @@ havoc_stage:
               interesting_8[rand_below(afl, sizeof(interesting_8))];
           break;
 
-        case 2:
+        }
 
-          /* Set word to interesting value, randomly choosing endian. */
+        case 14:
+        case 15:
+        case 16: {
+
+          /* Set word to interesting value.. */
+          if (temp_len < 2) { break; }
+
+#ifdef INTROSPECTION
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING16");
+          strcat(afl->mutation, afl->m_tmp);
+#endif
+          *(u16 *)(out_buf + rand_below(afl, temp_len - 1)) =
+              interesting_16[rand_below(afl, sizeof(interesting_16) >> 1)];
+          break;
+
+        }
+
+        case 17:
+        case 18:
+        case 19: {
+
+          /* Set word to interesting BE value. */
 
           if (temp_len < 2) { break; }
 
-          if (rand_below(afl, 2)) {
-
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING16");
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING16BE");
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u16 *)(out_buf + rand_below(afl, temp_len - 1)) =
-                interesting_16[rand_below(afl, sizeof(interesting_16) >> 1)];
-
-          } else {
-
-#ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING16BE");
-            strcat(afl->mutation, afl->m_tmp);
-#endif
-            *(u16 *)(out_buf + rand_below(afl, temp_len - 1)) = SWAP16(
-                interesting_16[rand_below(afl, sizeof(interesting_16) >> 1)]);
-
-          }
+          *(u16 *)(out_buf + rand_below(afl, temp_len - 1)) = SWAP16(
+              interesting_16[rand_below(afl, sizeof(interesting_16) >> 1)]);
 
           break;
 
-        case 3:
+        }
 
-          /* Set dword to interesting value, randomly choosing endian. */
+        case 20:
+        case 21:
+        case 22:
+          /* Set dword to interesting value. */
+          {
 
-          if (temp_len < 4) { break; }
-
-          if (rand_below(afl, 2)) {
+            if (temp_len < 4) { break; }
 
 #ifdef INTROSPECTION
             snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING32");
@@ -2134,21 +2158,37 @@ havoc_stage:
 #endif
             *(u32 *)(out_buf + rand_below(afl, temp_len - 3)) =
                 interesting_32[rand_below(afl, sizeof(interesting_32) >> 2)];
-
-          } else {
-
-#ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING32BE");
-            strcat(afl->mutation, afl->m_tmp);
-#endif
-            *(u32 *)(out_buf + rand_below(afl, temp_len - 3)) = SWAP32(
-                interesting_32[rand_below(afl, sizeof(interesting_32) >> 2)]);
+            break;
 
           }
 
+        case 23:
+        case 24:
+        case 25: {
+
+          /* Set dword to interesting value BE. */
+
+          if (temp_len < 4) { break; }
+
+#ifdef INTROSPECTION
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INTERESTING32BE");
+          strcat(afl->mutation, afl->m_tmp);
+#endif
+          *(u32 *)(out_buf + rand_below(afl, temp_len - 3)) = SWAP32(
+              interesting_32[rand_below(afl, sizeof(interesting_32) >> 2)]);
+
           break;
 
-        case 4:
+        }
+
+        case 26:
+        case 27:
+        case 28:
+        case 29:
+        case 30:
+        case 31:
+        case 32:
+        case 33: {
 
           /* Randomly subtract from byte. */
 
@@ -2159,7 +2199,15 @@ havoc_stage:
           out_buf[rand_below(afl, temp_len)] -= 1 + rand_below(afl, ARITH_MAX);
           break;
 
-        case 5:
+        }
+
+        case 34:
+        case 35:
+        case 36:
+        case 37:
+        case 38:
+        case 39:
+        case 40: {
 
           /* Randomly add to byte. */
 
@@ -2170,112 +2218,140 @@ havoc_stage:
           out_buf[rand_below(afl, temp_len)] += 1 + rand_below(afl, ARITH_MAX);
           break;
 
-        case 6:
+        }
 
-          /* Randomly subtract from word, random endian. */
+        case 41:
+        case 42:
+        case 43: {
 
+          /* Randomly subtract from word */
           if (temp_len < 2) { break; }
 
-          if (rand_below(afl, 2)) {
-
-            u32 pos = rand_below(afl, temp_len - 1);
+          u32 pos = rand_below(afl, temp_len - 1);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16_-%u", pos);
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16_-%u", pos);
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u16 *)(out_buf + pos) -= 1 + rand_below(afl, ARITH_MAX);
+          *(u16 *)(out_buf + pos) -= 1 + rand_below(afl, ARITH_MAX);
+          break;
 
-          } else {
+        }
 
-            u32 pos = rand_below(afl, temp_len - 1);
-            u16 num = 1 + rand_below(afl, ARITH_MAX);
+        case 44:
+        case 45:
+        case 46:
+        case 47: {
+
+          /* Randomly subtract from word BE */
+          if (temp_len < 2) { break; }
+
+          u32 pos = rand_below(afl, temp_len - 1);
+          u16 num = 1 + rand_below(afl, ARITH_MAX);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16_BE-%u_%u", pos,
-                     num);
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16_BE-%u_%u", pos,
+                   num);
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u16 *)(out_buf + pos) =
-                SWAP16(SWAP16(*(u16 *)(out_buf + pos)) - num);
-
-          }
+          *(u16 *)(out_buf + pos) =
+              SWAP16(SWAP16(*(u16 *)(out_buf + pos)) - num);
 
           break;
 
-        case 7:
+        }
+
+        case 48:
+        case 49:
+        case 50:
+        case 51: {
+
+          if (temp_len < 2) { break; }
+
+          u32 pos = rand_below(afl, temp_len - 1);
+
+#ifdef INTROSPECTION
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16+-%u", pos);
+          strcat(afl->mutation, afl->m_tmp);
+#endif
+          *(u16 *)(out_buf + pos) += 1 + rand_below(afl, ARITH_MAX);
+          break;
+
+        }
+
+        case 52:
+        case 53:
+        case 54:
+        case 55: {
 
           /* Randomly add to word, random endian. */
 
           if (temp_len < 2) { break; }
 
-          if (rand_below(afl, 2)) {
-
-            u32 pos = rand_below(afl, temp_len - 1);
-
-#ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16+-%u", pos);
-            strcat(afl->mutation, afl->m_tmp);
-#endif
-            *(u16 *)(out_buf + pos) += 1 + rand_below(afl, ARITH_MAX);
-
-          } else {
-
-            u32 pos = rand_below(afl, temp_len - 1);
-            u16 num = 1 + rand_below(afl, ARITH_MAX);
+          u32 pos = rand_below(afl, temp_len - 1);
+          u16 num = 1 + rand_below(afl, ARITH_MAX);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16+BE-%u_%u", pos,
-                     num);
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH16+BE-%u_%u", pos,
+                   num);
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u16 *)(out_buf + pos) =
-                SWAP16(SWAP16(*(u16 *)(out_buf + pos)) + num);
-
-          }
+          *(u16 *)(out_buf + pos) =
+              SWAP16(SWAP16(*(u16 *)(out_buf + pos)) + num);
 
           break;
 
-        case 8:
+        }
 
-          /* Randomly subtract from dword, random endian. */
+        case 56:
+        case 57:
+        case 58: {
 
+          /* Randomly subtract from dword */
           if (temp_len < 4) { break; }
 
-          if (rand_below(afl, 2)) {
-
-            u32 pos = rand_below(afl, temp_len - 3);
+          u32 pos = rand_below(afl, temp_len - 3);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32_-%u", pos);
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32_-%u", pos);
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u32 *)(out_buf + pos) -= 1 + rand_below(afl, ARITH_MAX);
+          *(u32 *)(out_buf + pos) -= 1 + rand_below(afl, ARITH_MAX);
+          break;
 
-          } else {
+        }
 
-            u32 pos = rand_below(afl, temp_len - 3);
-            u32 num = 1 + rand_below(afl, ARITH_MAX);
+        case 59:
+        case 60:
+        case 61:
+        case 62: {
+
+          /* Randomly subtract from dword BE. */
+          if (temp_len < 4) { break; }
+
+          u32 pos = rand_below(afl, temp_len - 3);
+          u32 num = 1 + rand_below(afl, ARITH_MAX);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32_BE-%u-%u", pos,
-                     num);
-            strcat(afl->mutation, afl->m_tmp);
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32_BE-%u-%u", pos,
+                   num);
+          strcat(afl->mutation, afl->m_tmp);
 #endif
-            *(u32 *)(out_buf + pos) =
-                SWAP32(SWAP32(*(u32 *)(out_buf + pos)) - num);
-
-          }
+          *(u32 *)(out_buf + pos) =
+              SWAP32(SWAP32(*(u32 *)(out_buf + pos)) - num);
 
           break;
 
-        case 9:
+        }
 
-          /* Randomly add to dword, random endian. */
+        case 63:
+        case 64:
+        case 65:
+        case 66:
+          /* Randomly add to dword. */
+          {
 
-          if (temp_len < 4) { break; }
-
-          if (rand_below(afl, 2)) {
+            if (temp_len < 4) { break; }
 
             u32 pos = rand_below(afl, temp_len - 3);
 
@@ -2284,25 +2360,41 @@ havoc_stage:
             strcat(afl->mutation, afl->m_tmp);
 #endif
             *(u32 *)(out_buf + pos) += 1 + rand_below(afl, ARITH_MAX);
-
-          } else {
-
-            u32 pos = rand_below(afl, temp_len - 3);
-            u32 num = 1 + rand_below(afl, ARITH_MAX);
-
-#ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32+BE-%u-%u", pos,
-                     num);
-            strcat(afl->mutation, afl->m_tmp);
-#endif
-            *(u32 *)(out_buf + pos) =
-                SWAP32(SWAP32(*(u32 *)(out_buf + pos)) + num);
+            break;
 
           }
 
+        case 67:
+        case 68:
+        case 69:
+        case 70: {
+
+          /* Randomly add to dword BE. */
+
+          if (temp_len < 4) { break; }
+
+          u32 pos = rand_below(afl, temp_len - 3);
+          u32 num = 1 + rand_below(afl, ARITH_MAX);
+
+#ifdef INTROSPECTION
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " ARITH32+BE-%u-%u", pos,
+                   num);
+          strcat(afl->mutation, afl->m_tmp);
+#endif
+          *(u32 *)(out_buf + pos) =
+              SWAP32(SWAP32(*(u32 *)(out_buf + pos)) + num);
+
           break;
 
-        case 10:
+        }
+
+        case 71:
+        case 72:
+        case 73:
+        case 74:
+        case 75:
+        case 76:
+        case 77: {
 
           /* Just set a random byte to a random value. Because,
              why not. We use XOR with 1-255 to eliminate the
@@ -2315,7 +2407,20 @@ havoc_stage:
           out_buf[rand_below(afl, temp_len)] ^= 1 + rand_below(afl, 255);
           break;
 
-        case 11 ... 12: {
+        }
+
+        case 78:
+        case 79:
+        case 80:
+        case 81:
+        case 82:
+        case 83:
+        case 84:
+        case 85:
+        case 86:
+        case 87:
+        case 88:
+        case 89: {
 
           /* Delete bytes. We're making this a bit more likely
              than insertion (the next option) in hopes of keeping
@@ -2345,34 +2450,29 @@ havoc_stage:
 
         }
 
-        case 13:
+        case 90:
+        case 91:
+        case 92:
+        case 93:
+        case 94:
+        case 95:
+        case 96:
+        case 97:
 
           if (temp_len + HAVOC_BLK_XL < MAX_FILE) {
 
-            /* Clone bytes (75%) or insert a block of constant bytes (25%). */
+            /* Clone bytes. */
 
-            u8  actually_clone = rand_below(afl, 4);
             u32 clone_from, clone_to, clone_len;
             u8 *new_buf;
 
-            if (likely(actually_clone)) {
-
-              clone_len = choose_block_len(afl, temp_len);
-              clone_from = rand_below(afl, temp_len - clone_len + 1);
-
-            } else {
-
-              clone_len = choose_block_len(afl, HAVOC_BLK_XL);
-              clone_from = 0;
-
-            }
-
+            clone_len = choose_block_len(afl, temp_len);
+            clone_from = rand_below(afl, temp_len - clone_len + 1);
             clone_to = rand_below(afl, temp_len);
 
 #ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " CLONE-%s-%u-%u-%u",
-                     actually_clone ? "clone" : "insert", clone_from, clone_to,
-                     clone_len);
+            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " CLONE-%u-%u-%u",
+                     clone_from, clone_to, clone_len);
             strcat(afl->mutation, afl->m_tmp);
 #endif
             new_buf =
@@ -2385,18 +2485,7 @@ havoc_stage:
 
             /* Inserted part */
 
-            if (likely(actually_clone)) {
-
-              memcpy(new_buf + clone_to, out_buf + clone_from, clone_len);
-
-            } else {
-
-              memset(new_buf + clone_to,
-                     rand_below(afl, 2) ? rand_below(afl, 256)
-                                        : out_buf[rand_below(afl, temp_len)],
-                     clone_len);
-
-            }
+            memcpy(new_buf + clone_to, out_buf + clone_from, clone_len);
 
             /* Tail */
             memcpy(new_buf + clone_to + clone_len, out_buf + clone_to,
@@ -2410,45 +2499,74 @@ havoc_stage:
 
           break;
 
-        case 14: {
+        case 98:
+        case 99:
+        case 100:
+        case 101:
 
-          /* Overwrite bytes with a randomly selected chunk (75%) or fixed
-             bytes (25%). */
+          if (temp_len + HAVOC_BLK_XL < MAX_FILE) {
 
-          u32 copy_from, copy_to, copy_len;
+            /* Insert copy. */
+
+            u8 *new_buf;
+            u32 clone_len = choose_block_len(afl, HAVOC_BLK_XL);
+            u32 clone_to = rand_below(afl, temp_len);
+
+#ifdef INTROSPECTION
+            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " INSERT-%u-%u-%u",
+                     clone_from, clone_to, clone_len);
+            strcat(afl->mutation, afl->m_tmp);
+#endif
+            new_buf =
+                afl_realloc(AFL_BUF_PARAM(out_scratch), temp_len + clone_len);
+            if (unlikely(!new_buf)) { PFATAL("alloc"); }
+
+            /* Head */
+
+            memcpy(new_buf, out_buf, clone_to);
+
+            /* Inserted part */
+
+            memset(new_buf + clone_to,
+                   rand_below(afl, 2) ? rand_below(afl, 256)
+                                      : out_buf[rand_below(afl, temp_len)],
+                   clone_len);
+
+            /* Tail */
+            memcpy(new_buf + clone_to + clone_len, out_buf + clone_to,
+                   temp_len - clone_to);
+
+            out_buf = new_buf;
+            afl_swap_bufs(AFL_BUF_PARAM(out), AFL_BUF_PARAM(out_scratch));
+            temp_len += clone_len;
+
+          }
+
+          break;
+
+        case 102:
+        case 103:
+        case 104:
+        case 105:
+        case 106:
+        case 107: {
+
+          /* Overwrite bytes with a randomly selected chunk. */
 
           if (temp_len < 2) { break; }
 
-          copy_len = choose_block_len(afl, temp_len - 1);
+          u32 copy_len = choose_block_len(afl, temp_len - 1);
+          u32 copy_from = rand_below(afl, temp_len - copy_len + 1);
+          u32 copy_to = rand_below(afl, temp_len - copy_len + 1);
 
-          copy_from = rand_below(afl, temp_len - copy_len + 1);
-          copy_to = rand_below(afl, temp_len - copy_len + 1);
-
-          if (likely(rand_below(afl, 4))) {
-
-            if (likely(copy_from != copy_to)) {
+          if (likely(copy_from != copy_to)) {
 
 #ifdef INTROSPECTION
-              snprintf(afl->m_tmp, sizeof(afl->m_tmp),
-                       " OVERWRITE_COPY-%u-%u-%u", copy_from, copy_to,
-                       copy_len);
-              strcat(afl->mutation, afl->m_tmp);
-#endif
-              memmove(out_buf + copy_to, out_buf + copy_from, copy_len);
-
-            }
-
-          } else {
-
-#ifdef INTROSPECTION
-            snprintf(afl->m_tmp, sizeof(afl->m_tmp),
-                     " OVERWRITE_FIXED-%u-%u-%u", copy_from, copy_to, copy_len);
+            snprintf(afl->m_tmp, sizeof(afl->m_tmp), " OVERWRITE_COPY-%u-%u-%u",
+                     copy_from, copy_to, copy_len);
             strcat(afl->mutation, afl->m_tmp);
 #endif
-            memset(out_buf + copy_to,
-                   rand_below(afl, 2) ? rand_below(afl, 256)
-                                      : out_buf[rand_below(afl, temp_len)],
-                   copy_len);
+            memmove(out_buf + copy_to, out_buf + copy_from, copy_len);
 
           }
 
@@ -2456,97 +2574,70 @@ havoc_stage:
 
         }
 
+        case 108:
+        case 109: {
+
+          /* Overwrite bytes with a randomly selected chunk (75%) or fixed
+             bytes (25%). */
+
+          if (temp_len < 2) { break; }
+
+          u32 copy_len = choose_block_len(afl, temp_len - 1);
+          u32 copy_to = rand_below(afl, temp_len - copy_len + 1);
+
+#ifdef INTROSPECTION
+          snprintf(afl->m_tmp, sizeof(afl->m_tmp), " OVERWRITE_FIXED-%u-%u-%u",
+                   copy_from, copy_to, copy_len);
+          strcat(afl->mutation, afl->m_tmp);
+#endif
+          memset(out_buf + copy_to,
+                 rand_below(afl, 2) ? rand_below(afl, 256)
+                                    : out_buf[rand_below(afl, temp_len)],
+                 copy_len);
+
+          break;
+
+        }
+
         default:
 
-          if (likely(r <= 16 && (afl->extras_cnt || afl->a_extras_cnt))) {
+          r -= 110;
+          if (afl->extras_cnt) {
 
-            /* Values 15 and 16 can be selected only if there are any extras
-               present in the dictionaries. */
+            if (r < 5) {
 
-            if (r == 15) {
+              u32 use_extra = rand_below(afl, afl->extras_cnt);
+              u32 extra_len = afl->extras[use_extra].len;
 
-              /* Overwrite bytes with an extra. */
+              if (extra_len > temp_len) { break; }
 
-              if (!afl->extras_cnt ||
-                  (afl->a_extras_cnt && rand_below(afl, 2))) {
-
-                /* No user-specified extras or odds in our favor. Let's use an
-                   auto-detected one. */
-
-                u32 use_extra = rand_below(afl, afl->a_extras_cnt);
-                u32 extra_len = afl->a_extras[use_extra].len;
-
-                if (extra_len > temp_len) { break; }
-
-                u32 insert_at = rand_below(afl, temp_len - extra_len + 1);
+              u32 insert_at = rand_below(afl, temp_len - extra_len + 1);
 #ifdef INTROSPECTION
-                snprintf(afl->m_tmp, sizeof(afl->m_tmp),
-                         " AUTO_EXTRA_OVERWRITE-%u-%u", insert_at, extra_len);
-                strcat(afl->mutation, afl->m_tmp);
+              snprintf(afl->m_tmp, sizeof(afl->m_tmp), " EXTRA_OVERWRITE-%u-%u",
+                       insert_at, extra_len);
+              strcat(afl->mutation, afl->m_tmp);
 #endif
-                memcpy(out_buf + insert_at, afl->a_extras[use_extra].data,
-                       extra_len);
-
-              } else {
-
-                /* No auto extras or odds in our favor. Use the dictionary. */
-
-                u32 use_extra = rand_below(afl, afl->extras_cnt);
-                u32 extra_len = afl->extras[use_extra].len;
-
-                if (extra_len > temp_len) { break; }
-
-                u32 insert_at = rand_below(afl, temp_len - extra_len + 1);
-#ifdef INTROSPECTION
-                snprintf(afl->m_tmp, sizeof(afl->m_tmp),
-                         " EXTRA_OVERWRITE-%u-%u", insert_at, extra_len);
-                strcat(afl->mutation, afl->m_tmp);
-#endif
-                memcpy(out_buf + insert_at, afl->extras[use_extra].data,
-                       extra_len);
-
-              }
+              memcpy(out_buf + insert_at, afl->extras[use_extra].data,
+                     extra_len);
 
               break;
 
-            } else {  // case 16
+            } else if (r < 10) {
 
-              u32 use_extra, extra_len,
-                  insert_at = rand_below(afl, temp_len + 1);
-              u8 *ptr;
-
-              /* Insert an extra. Do the same dice-rolling stuff as for the
-                 previous case. */
-
-              if (!afl->extras_cnt ||
-                  (afl->a_extras_cnt && rand_below(afl, 2))) {
-
-                use_extra = rand_below(afl, afl->a_extras_cnt);
-                extra_len = afl->a_extras[use_extra].len;
-                ptr = afl->a_extras[use_extra].data;
+              u32 use_extra = rand_below(afl, afl->extras_cnt);
+              u32 extra_len = afl->extras[use_extra].len;
+              u8 *ptr = afl->extras[use_extra].data;
 #ifdef INTROSPECTION
-                snprintf(afl->m_tmp, sizeof(afl->m_tmp),
-                         " AUTO_EXTRA_INSERT-%u-%u", insert_at, extra_len);
-                strcat(afl->mutation, afl->m_tmp);
+              snprintf(afl->m_tmp, sizeof(afl->m_tmp), " EXTRA_INSERT-%u-%u",
+                       insert_at, extra_len);
+              strcat(afl->mutation, afl->m_tmp);
 #endif
-
-              } else {
-
-                use_extra = rand_below(afl, afl->extras_cnt);
-                extra_len = afl->extras[use_extra].len;
-                ptr = afl->extras[use_extra].data;
-#ifdef INTROSPECTION
-                snprintf(afl->m_tmp, sizeof(afl->m_tmp), " EXTRA_INSERT-%u-%u",
-                         insert_at, extra_len);
-                strcat(afl->mutation, afl->m_tmp);
-#endif
-
-              }
-
               if (temp_len + extra_len >= MAX_FILE) { break; }
 
               out_buf = afl_realloc(AFL_BUF_PARAM(out), temp_len + extra_len);
               if (unlikely(!out_buf)) { PFATAL("alloc"); }
+
+              u32 insert_at = rand_below(afl, temp_len + 1);
 
               /* Tail */
               memmove(out_buf + insert_at + extra_len, out_buf + insert_at,
@@ -2559,16 +2650,68 @@ havoc_stage:
 
               break;
 
+            } else {
+
+              r -= 10;
+
             }
 
-          } else {
+          }
 
-            /*
-                        switch (r) {
+          if (afl->a_extras_cnt) {
 
-                          case 15:  // fall through
-                          case 16:
-                          case 17: {*/
+            if (r < 2) {
+
+              u32 use_a_extra = rand_below(afl, afl->a_extras_cnt);
+              u32 a_extra_len = afl->a_extras[use_a_extra].len;
+
+              if (a_extra_len > temp_len) { break; }
+
+              u32 insert_at = rand_below(afl, temp_len - a_extra_len + 1);
+#ifdef INTROSPECTION
+              snprintf(afl->m_tmp, sizeof(afl->m_tmp),
+                       " AUTO_EXTRA_OVERWRITE-%u-%u", insert_at, a_extra_len);
+              strcat(afl->mutation, afl->m_tmp);
+#endif
+              memcpy(out_buf + insert_at, afl->a_extras[use_a_extra].data,
+                     a_extra_len);
+
+              break;
+
+            } else if (r < 4) {
+
+              u32 use_a_extra = rand_below(afl, afl->a_extras_cnt);
+              u32 a_extra_len = afl->a_extras[use_a_extra].len;
+              u8 *ptr = afl->a_extras[use_a_extra].data;
+#ifdef INTROSPECTION
+              snprintf(afl->m_tmp, sizeof(afl->m_tmp),
+                       " AUTO_EXTRA_INSERT-%u-%u", insert_at, a_extra_len);
+              strcat(afl->mutation, afl->m_tmp);
+#endif
+              if (temp_len + a_extra_len >= MAX_FILE) { break; }
+
+              out_buf = afl_realloc(AFL_BUF_PARAM(out), temp_len + a_extra_len);
+              if (unlikely(!out_buf)) { PFATAL("alloc"); }
+
+              u32 insert_at = rand_below(afl, temp_len + 1);
+              /* Tail */
+              memmove(out_buf + insert_at + a_extra_len, out_buf + insert_at,
+                      temp_len - insert_at);
+
+              /* Inserted part */
+              memcpy(out_buf + insert_at, ptr, a_extra_len);
+
+              temp_len += a_extra_len;
+
+              break;
+
+            }
+
+          }
+
+          {
+
+            /* SPLICE */
 
             /* Overwrite bytes with a randomly selected chunk from another
                testcase or insert that chunk. */
@@ -2587,7 +2730,7 @@ havoc_stage:
             u32                 new_len = target->len;
             u8 *                new_buf = queue_testcase_get(afl, target);
 
-            if ((temp_len >= 2 && rand_below(afl, 2)) ||
+            if ((temp_len >= 2 && r % 2 == 0) ||
                 temp_len + HAVOC_BLK_XL >= MAX_FILE) {
 
               /* overwrite mode */
