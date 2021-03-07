@@ -29,7 +29,7 @@
 #include "cmplog.h"
 
 //#define _DEBUG
-//#define CMPLOG_INTROSPECTION
+#define CMPLOG_INTROSPECTION
 
 // CMP attribute enum
 enum {
@@ -2535,27 +2535,56 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
   }
 
 #if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
-  u32 unstable = 0;
+  u32 unstable_cmp_f = 0, unstable_rtn_f = 0, unstable_cmp_s = 0,
+      unstable_rtn_s = 0;
 #endif
 
   for (k = 0; k < CMP_MAP_W; ++k) {
 
     if (afl->pass_stats[k].faileds < CMPLOG_FAIL_MAX) {
 
-      if (afl->shm.cmp_map->headers[k].hits !=
-              afl->orig_cmp_map->headers[k].hits ||
-          afl->shm.cmp_map->headers[k].type !=
-              afl->orig_cmp_map->headers[k].type ||
-          afl->shm.cmp_map->headers[k].shape !=
-              afl->orig_cmp_map->headers[k].shape) {
+      if (unlikely(afl->orig_cmp_map->headers[k].hits)) {
 
-        afl->pass_stats[k].faileds++;
-        afl->orig_cmp_map->headers[k].hits = 0;
+        if (afl->shm.cmp_map->headers[k].hits !=
+                afl->orig_cmp_map->headers[k].hits ||
+            afl->shm.cmp_map->headers[k].type !=
+                afl->orig_cmp_map->headers[k].type ||
+            afl->shm.cmp_map->headers[k].shape !=
+                afl->orig_cmp_map->headers[k].shape) {
+
+          if (afl->orig_cmp_map->headers[k].type != CMP_TYPE_INS &&
+              afl->shm.cmp_map->headers[k].hits ==
+                  afl->orig_cmp_map->headers[k].hits &&
+              afl->shm.cmp_map->headers[k].type ==
+                  afl->orig_cmp_map->headers[k].type) {
+
+            // for RTN the shape can be different which is fine though
+            if (afl->shm.cmp_map->headers[k].shape <
+                afl->orig_cmp_map->headers[k].shape) {
+
+              afl->orig_cmp_map->headers[k].shape =
+                  afl->shm.cmp_map->headers[k].shape;
+
+            }
+
+          } else {
+
+            afl->pass_stats[k].faileds++;
+            afl->orig_cmp_map->headers[k].hits = 0;
 #if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
-        ++unstable;
+            if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS)
+              ++unstable_cmp_f;
+            else
+              ++unstable_rtn_f;
 #endif
 
-      } else if (afl->orig_cmp_map->headers[k].hits) {
+          }
+
+        }
+
+      }
+
+      if (unlikely(afl->orig_cmp_map->headers[k].hits)) {
 
         if (afl->orig_cmp_map->headers[k].type == CMP_TYPE_INS) {
 
@@ -2595,9 +2624,29 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
           if (memcmp(v01, v11, afl->orig_cmp_map->headers[k].shape + 1) != 0 ||
               memcmp(v00, v10, afl->orig_cmp_map->headers[k].shape + 1) != 0) {
 
+            if (afl->orig_cmp_map->headers[k].type != CMP_TYPE_INS) {
+
+              u32 len = 0;
+              for (len = 0; len <= afl->orig_cmp_map->headers[k].shape; ++len)
+                if (v01[len] != v11[len] || v00[len] != v10[len]) break;
+
+              if (len) {
+
+                afl->orig_cmp_map->headers[k].shape = len;
+                continue;
+
+              }
+
 #if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
-            ++unstable;
+              ++unstable_rtn_s;
+
+            } else {
+
+              ++unstable_cmp_s;
 #endif
+
+            }
+
             afl->pass_stats[k].faileds++;
             afl->orig_cmp_map->headers[k].hits = 0;
             continue;
@@ -2613,7 +2662,8 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
   }
 
 #if defined(_DEBUG) || defined(CMPLOG_INTROSPECTION)
-  if (unstable) {
+  if (unlikely(unstable_cmp_f || unstable_rtn_f || unstable_cmp_s ||
+               unstable_rtn_s)) {
 
     FILE *f = stderr;
   #ifndef _DEBUG
@@ -2629,8 +2679,11 @@ u8 input_to_state_stage(afl_state_t *afl, u8 *orig_buf, u8 *buf, u32 len) {
 
     if (f) {
 
-      fprintf(f, "Unstable: fname=%s len=%u unstable=%u\n",
-              afl->queue_cur->fname, len, unstable);
+      fprintf(f,
+              "Unstable: fname=%s len=%u unstable_cmp_f=%u unstable_rtn_f=%u "
+              "unstable_cmp_s=%u unstable_rtn_s=%u\n",
+              afl->queue_cur->fname, len, unstable_cmp_f, unstable_rtn_f,
+              unstable_cmp_s, unstable_rtn_s);
 
   #ifndef _DEBUG
       if (afl->not_on_tty) { fclose(f); }
