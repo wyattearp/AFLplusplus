@@ -2,9 +2,9 @@
 
   <img align="right" src="https://raw.githubusercontent.com/andreafioraldi/AFLplusplus-website/master/static/logo_256x256.png" alt="AFL++ Logo">
 
-  Release Version: [3.00c](https://github.com/AFLplusplus/AFLplusplus/releases)
+  Release Version: [3.10c](https://github.com/AFLplusplus/AFLplusplus/releases)
 
-  Github Version: 3.01a
+  Github Version: 3.11a
 
   Repository: [https://github.com/AFLplusplus/AFLplusplus](https://github.com/AFLplusplus/AFLplusplus)
 
@@ -25,14 +25,14 @@
   For comparisons use the fuzzbench `aflplusplus` setup, or use `afl-clang-fast`
   with `AFL_LLVM_CMPLOG=1`.
 
-## Major changes in afl++ 3.0 + 3.1
+## Major changes in afl++ 3.00 + 3.10
 
-With afl++ 3.1 we introduced the following changes from previous behaviours:
+With afl++ 3.10 we introduced the following changes from previous behaviours:
   * The '+' feature of the '-t' option now means to  auto-calculate the timeout
     with the value given being the maximum timeout. The original meaning of
     "skipping timeouts instead of abort" is now inherent to the -t option.
 
-With afl++ 3.0 we introduced changes that break some previous afl and afl++
+With afl++ 3.00 we introduced changes that break some previous afl and afl++
 behaviours and defaults:
 
   * There are no llvm_mode and gcc_plugin subdirectories anymore and there is
@@ -224,7 +224,6 @@ These build options exist:
 * NO_PYTHON - disable python support
 * NO_SPLICING - disables splicing mutation in afl-fuzz, not recommended for normal fuzzing
 * AFL_NO_X86 - if compiling on non-intel/amd platforms
-* NO_ARCH_OPT - builds afl++ without machine architecture optimizations
 * LLVM_CONFIG - if your distro doesn't use the standard name for llvm-config (e.g. Debian)
 
 e.g.: make ASAN_BUILD=1
@@ -239,6 +238,7 @@ Here are some good writeups to show how to effectively use AFL++:
  * [https://securitylab.github.com/research/fuzzing-software-2](https://securitylab.github.com/research/fuzzing-software-2)
  * [https://securitylab.github.com/research/fuzzing-sockets-FTP](https://securitylab.github.com/research/fuzzing-sockets-FTP)
  * [https://securitylab.github.com/research/fuzzing-sockets-FreeRDP](https://securitylab.github.com/research/fuzzing-sockets-FreeRDP)
+ * [https://securitylab.github.com/research/fuzzing-apache-1](https://securitylab.github.com/research/fuzzing-apache-1)
 
 If you are interested in fuzzing structured data (where you define what the
 structure is), these links have you covered:
