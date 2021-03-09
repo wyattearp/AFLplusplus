@@ -1999,23 +1999,23 @@ havoc_stage:
 
   u32 r_max, r;
 
-  r_max = 94 + (afl->extras_cnt ? 8 : 0) + (afl->a_extras_cnt ? 4 : 0);
+  r_max = 96 + (afl->extras_cnt ? 8 : 0) + (afl->a_extras_cnt ? 4 : 0);
 
   if (unlikely(afl->expand_havoc && afl->ready_for_splicing_count > 1)) {
 
     /* add expensive havoc cases here, they are activated after a full
        cycle without finds happened */
 
-    r_max += 2;
+    r_max += 4;
 
   }
 
-  if (unlikely(get_cur_time() - afl->last_path_time > 30000 &&
+  if (unlikely(get_cur_time() - afl->last_path_time > 60000 &&
                afl->ready_for_splicing_count > 1)) {
 
-    /* add expensive havoc cases here if there is no findings in the last 5s */
+    /* add expensive havoc cases here if there is no findings in the last 60s */
 
-    r_max += 2;
+    r_max += 4;
 
   }
 
